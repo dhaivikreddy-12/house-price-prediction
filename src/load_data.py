@@ -1,31 +1,52 @@
-"""Generate a synthetic but realistic house prices dataset."""
+"""Load the California Housing dataset (real data, 20,640 homes).
+
+Source: sklearn.datasets.fetch_california_housing, originally derived from the
+1990 U.S. Census. Cached to data/ so the repo runs offline after the first run.
+"""
 import os
-import numpy as np
 import pandas as pd
 
-rng = np.random.default_rng(42)
+CSV_PATH = "data/house_prices.csv"
+URL = "https://archive.ics.uci.edu/static/public/235/california+housing.zip"
 
-n = 200
-sqft_living = rng.integers(600, 3500, n)
-bedrooms = np.clip((sqft_living // 700) + rng.integers(0, 2, n), 1, 6)
-bathrooms = np.clip((bedrooms + 1) // 2 + rng.integers(0, 2, n), 1, 5)
-age = rng.integers(0, 60, n)
 
-base = 80 * sqft_living + 12000 * bedrooms + 9000 * bathrooms
-age_penalty = 500 * age
-noise = rng.normal(0, 25000, n)
-price = base - age_penalty + noise
-price = np.maximum(price, 30000)
+def build():
+    from sklearn.datasets import fetch_california_housing
 
-df = pd.DataFrame({
-    "sqft_living": sqft_living,
-    "bedrooms": bedrooms,
-    "bathrooms": bathrooms,
-    "age": age,
-    "price": price.round(0).astype(int),
-})
+    print("Downloading California Housing dataset (first run only)...")
+    bunch = fetch_california_housing()
+    df = pd.DataFrame(bunch.data, columns=list(bunch.feature_names))
+    df["MedHouseVal"] = bunch.target * 100_000  # target is in $100k units
+    df["avg_rooms"] = df["AveRooms"]
+    df["avg_bedrooms"] = df["AveBedrms"]
+    df["house_age"] = df["HouseAge"]
+    df["population"] = df["Population"]
+    df = df[
+        [
+            "MedHouseVal",
+            "MedInc",
+            "HouseAge",
+            "AveRooms",
+            "AveBedrms",
+            "Population",
+            "AveOccup",
+            "Latitude",
+            "Longitude",
+        ]
+    ]
+    return df
 
-os.makedirs("data", exist_ok=True)
-df.to_csv("data/house_prices.csv", index=False)
-print(f"Generated {len(df)} rows -> data/house_prices.csv")
-print(df.head())
+
+def load():
+    if os.path.exists(CSV_PATH):
+        return pd.read_csv(CSV_PATH)
+    df = build()
+    os.makedirs("data", exist_ok=True)
+    df.to_csv(CSV_PATH, index=False)
+    return df
+
+
+if __name__ == "__main__":
+    df = load()
+    print(f"Loaded {len(df)} homes -> {CSV_PATH}")
+    print(df.head())
